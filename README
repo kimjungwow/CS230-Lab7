@@ -24,8 +24,9 @@ Makefile
     to build your solution, or "make clean" followed by "make" for a
     fresh build. 
 
-    Type "make handin" to create the tarfile that you will be handing
-    in. You can modify it any way you like. Your instructor will use your
+    Type "make handin" to submit your code with "submit" tag. 
+    If you don't properly follow the handin instrucions, you will not get any points.  
+    You can modify it any way you like. Your instructor will use your
     Makefile to build your proxy from source.
 
 port-for-user.pl
