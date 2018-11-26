@@ -1,10 +1,10 @@
 ####################################################################
-# CS:APP Proxy Lab
+# CS230 Proxy Lab
 #
 # Student Source Files
 ####################################################################
 
-This directory contains the files you will need for the CS:APP Proxy
+This directory contains the files you will need for the CS230 Proxy
 Lab.
 
 proxy.c
@@ -46,5 +46,5 @@ nop-server.py
      helper for the autograder.         
 
 tiny
-    Tiny Web server from the CS:APP text
+    Tiny Web server from the CS230 text
 
