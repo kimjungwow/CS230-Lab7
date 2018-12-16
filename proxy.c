@@ -12,16 +12,20 @@ static const char *user_agent_hdr = "\r\nUser-Agent: Mozilla/5.0 (X11; Linux x86
 char proxystring[] = "./proxy";
 char eighty[] = "80";
 char eightyeighty[] = "8080";
-char *enterport;
+char enterport[20];
 int ee = 80;
 char *first_get, *second_url, *third_http, *parse_host, *parse_path;
 void echo(int connfd);
 void writeerror(int connfd);
 void parse(int connfd);
+void sigchld_handler(int sig);
+void *parse_thread(void *vargp);
 int main(int argc, char **argv)
 {
+         
     Signal(SIGPIPE, SIG_IGN);
-    int listenfd, connfd;
+    int listenfd;
+    // int connfd;
     socklen_t clientlen;
     struct sockaddr_storage clientaddr; // Enough space for any address
     char client_hostname[MAXLINE], client_port[MAXLINE];
@@ -31,21 +35,43 @@ int main(int argc, char **argv)
         fprintf(stderr, "usage: ./proxy <port>\n");
         exit(0);
     }
-
+    pthread_t tid;    
     listenfd = open_listenfd(argv[1]);
     while (1)
     {
-        clientlen = sizeof(struct sockaddr_storage);
-        connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
+        int *connfdp = malloc(sizeof(int));
+        *connfdp=Accept(listenfd, (SA *) &clientaddr, &clientlen);
+
         Getnameinfo((SA *)&clientaddr, clientlen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
-        printf("Connected to (%s, %s)\n", client_hostname, client_port);
+        
+        pthread_create(&tid,NULL,parse_thread,connfdp);
+
+        // clientlen = sizeof(struct sockaddr_storage);
+        // connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
+        // Getnameinfo((SA *)&clientaddr, clientlen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
+        // printf("Connected to (%s, %s)\n", client_hostname, client_port);
+        
         // echo(connfd);
-        parse(connfd);
-        Close(connfd);
+        // parse(connfd);
+        // Close(connfd);
     }
     Close(listenfd);
     exit(0);
 }
+
+
+void *parse_thread(void *vargp)
+{
+    int connfd =*((int *)vargp);
+    pthread_detach(pthread_self());
+    free(vargp);
+
+    parse(connfd);
+    Close(connfd);
+    return NULL;
+}
+
+
 
 void echo(int connfd)
 {
@@ -67,6 +93,8 @@ void writeerror(int connfd)
     Rio_writen(connfd, "usage: GET [URL] HTTP/1.1\n\n", 26);
     return;
 }
+
+
 
 void parse(int connfd)
 {
@@ -123,11 +151,17 @@ void parse(int connfd)
         parse_path = strtok(NULL, "");
         
         char *givenport = strchr(parse_host,':');
+        // printf("givenport\n%s\n%ld\n",givenport,strlen(givenport));
+        // strcpy(givenport,givenport+1);
+        // printf("givenport\n%s\n%ld\n",givenport,strlen(givenport));
+        // printf("Am i here?\n");
         if (givenport!=NULL) {
             parse_host = strtok(parse_host, ":");
-            enterport=eightyeighty;
+            
+            strcpy(enterport,givenport+1);
+            printf("port %s\n",enterport);
         } else {
-            enterport=eighty;
+            strcpy(enterport,eighty);
         }
 
         if ((clientfd = open_clientfd(parse_host, enterport)) < 0)
@@ -157,5 +191,12 @@ void parse(int connfd)
         Close(clientfd);
     }
 
+    return;
+}
+
+void sigchld_handler(int sig)
+{
+    while(waitpid(-1,0,WNOHANG)>0)
+    ;
     return;
 }
