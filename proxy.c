@@ -20,6 +20,7 @@ void writeerror(int connfd);
 void parse(int connfd);
 int main(int argc, char **argv)
 {
+    Signal(SIGPIPE, SIG_IGN);
     int listenfd, connfd;
     socklen_t clientlen;
     struct sockaddr_storage clientaddr; // Enough space for any address
@@ -91,7 +92,7 @@ void parse(int connfd)
             writeerror(connfd);
             continue;
         }
-        printf("server received %d bytes\n", (int)n);
+        // printf("server received %d bytes\n", (int)n);
         first_get = strtok(buf, " ");
         if (strcmp(first_get, "GET"))
         {
@@ -128,10 +129,7 @@ void parse(int connfd)
         } else {
             enterport=eighty;
         }
-        printf("%s\n", first_get);
-        printf("%s\n", parse_host);
-        printf("%s\n", third_http);
-        printf("man\n");
+
         if ((clientfd = open_clientfd(parse_host, enterport)) < 0)
         {
             continue;
@@ -149,17 +147,15 @@ void parse(int connfd)
         strcat(buf_cli, "Connection: close\r\nProxy-Connection: close\r\n\r\n");
 
         Rio_writen(clientfd, buf_cli, strlen(buf_cli));
-        printf("%s\n", buf_cli);
-        printf("Send this!\n");
+
         while (
             Rio_readlineb(&rio_cli, buf_cli, MAXLINE) > 0)
         {
             Rio_writen(connfd, buf_cli, strlen(buf_cli));
         }
-        // Fputs(buf_cli, stdout);
 
         Close(clientfd);
     }
-    // Close(connfd);
+
     return;
 }
