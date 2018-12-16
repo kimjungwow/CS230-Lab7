@@ -11,18 +11,17 @@ static const char *user_agent_hdr = "\r\nUser-Agent: Mozilla/5.0 (X11; Linux x86
 
 char proxystring[] = "./proxy";
 char eighty[] = "80";
-char eightyeighty[] = "8080";
 char enterport[20];
 int ee = 80;
 char *first_get, *second_url, *third_http, *parse_host, *parse_path;
 void echo(int connfd);
 void writeerror(int connfd);
 void parse(int connfd);
-void sigchld_handler(int sig);
+
 void *parse_thread(void *vargp);
 int main(int argc, char **argv)
 {
-         
+
     Signal(SIGPIPE, SIG_IGN);
     int listenfd;
     // int connfd;
@@ -35,22 +34,22 @@ int main(int argc, char **argv)
         fprintf(stderr, "usage: ./proxy <port>\n");
         exit(0);
     }
-    pthread_t tid;    
+    pthread_t tid;
     listenfd = open_listenfd(argv[1]);
     while (1)
     {
         int *connfdp = malloc(sizeof(int));
-        *connfdp=Accept(listenfd, (SA *) &clientaddr, &clientlen);
+        *connfdp = Accept(listenfd, (SA *)&clientaddr, &clientlen);
 
         Getnameinfo((SA *)&clientaddr, clientlen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
-        
-        pthread_create(&tid,NULL,parse_thread,connfdp);
+
+        pthread_create(&tid, NULL, parse_thread, connfdp);
 
         // clientlen = sizeof(struct sockaddr_storage);
         // connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
         // Getnameinfo((SA *)&clientaddr, clientlen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
         // printf("Connected to (%s, %s)\n", client_hostname, client_port);
-        
+
         // echo(connfd);
         // parse(connfd);
         // Close(connfd);
@@ -59,10 +58,9 @@ int main(int argc, char **argv)
     exit(0);
 }
 
-
 void *parse_thread(void *vargp)
 {
-    int connfd =*((int *)vargp);
+    int connfd = *((int *)vargp);
     pthread_detach(pthread_self());
     free(vargp);
 
@@ -70,8 +68,6 @@ void *parse_thread(void *vargp)
     Close(connfd);
     return NULL;
 }
-
-
 
 void echo(int connfd)
 {
@@ -94,8 +90,6 @@ void writeerror(int connfd)
     return;
 }
 
-
-
 void parse(int connfd)
 {
     size_t n;
@@ -105,7 +99,7 @@ void parse(int connfd)
     Rio_readinitb(&rio, connfd);
     while ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0)
     {
-        printf("%s\n",buf);
+        printf("%s\n", buf);
         int i, space = 0;
         for (i = 0; i < n; i++)
         {
@@ -127,7 +121,7 @@ void parse(int connfd)
             Rio_writen(connfd, "We only use GET method\n\n", 24);
             continue;
         }
-        
+
         second_url = strtok(NULL, " ");
         if (strncmp(second_url, "http://", 7))
         {
@@ -136,32 +130,29 @@ void parse(int connfd)
         }
 
         third_http = strtok(NULL, " ");
-        
-        if ((strncmp(third_http, "HTTP/1.0",8)!=0) && (strncmp(third_http, "HTTP/1.1",8)!=0))
+
+        if ((strncmp(third_http, "HTTP/1.0", 8) != 0) && (strncmp(third_http, "HTTP/1.1", 8) != 0))
         {
             Rio_writen(connfd, "Please use HTTP/1.0 or HTTP/1.1\n\n", 33);
             continue;
         }
-        
 
         parse_host = strtok(second_url, "/"); // Overwrite
 
         parse_host = strtok(NULL, "/");
-        
+
         parse_path = strtok(NULL, "");
-        
-        char *givenport = strchr(parse_host,':');
-        // printf("givenport\n%s\n%ld\n",givenport,strlen(givenport));
-        // strcpy(givenport,givenport+1);
-        // printf("givenport\n%s\n%ld\n",givenport,strlen(givenport));
-        // printf("Am i here?\n");
-        if (givenport!=NULL) {
+
+        char *givenport = strchr(parse_host, ':');
+        if (givenport != NULL)
+        {
             parse_host = strtok(parse_host, ":");
-            
-            strcpy(enterport,givenport+1);
-            printf("port %s\n",enterport);
-        } else {
-            strcpy(enterport,eighty);
+
+            strcpy(enterport, givenport + 1);
+        }
+        else
+        {
+            strcpy(enterport, eighty);
         }
 
         if ((clientfd = open_clientfd(parse_host, enterport)) < 0)
@@ -191,12 +182,5 @@ void parse(int connfd)
         Close(clientfd);
     }
 
-    return;
-}
-
-void sigchld_handler(int sig)
-{
-    while(waitpid(-1,0,WNOHANG)>0)
-    ;
     return;
 }
