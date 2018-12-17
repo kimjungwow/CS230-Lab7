@@ -44,15 +44,6 @@ int main(int argc, char **argv)
         Getnameinfo((SA *)&clientaddr, clientlen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
 
         pthread_create(&tid, NULL, parse_thread, connfdp);
-
-        // clientlen = sizeof(struct sockaddr_storage);
-        // connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
-        // Getnameinfo((SA *)&clientaddr, clientlen, client_hostname, MAXLINE, client_port, MAXLINE, 0);
-        // printf("Connected to (%s, %s)\n", client_hostname, client_port);
-
-        // echo(connfd);
-        // parse(connfd);
-        // Close(connfd);
     }
     Close(listenfd);
     exit(0);
@@ -92,13 +83,14 @@ void writeerror(int connfd)
 
 void parse(int connfd)
 {
-    size_t n;
+    size_t n, m;
     char buf[MAXLINE], buf_cli[MAXLINE];
     rio_t rio, rio_cli;
-    int clientfd;
+    int clientfd, binary = 0;
     Rio_readinitb(&rio, connfd);
     while ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0)
     {
+
         printf("%s\n", buf);
         int i, space = 0;
         for (i = 0; i < n; i++)
@@ -136,7 +128,6 @@ void parse(int connfd)
             Rio_writen(connfd, "Please use HTTP/1.0 or HTTP/1.1\n\n", 33);
             continue;
         }
-
         parse_host = strtok(second_url, "/"); // Overwrite
 
         parse_host = strtok(NULL, "/");
@@ -173,10 +164,50 @@ void parse(int connfd)
 
         Rio_writen(clientfd, buf_cli, strlen(buf_cli));
 
-        while (
-            Rio_readlineb(&rio_cli, buf_cli, MAXLINE) > 0)
+        char *binarystr = strstr(parse_path, ".jpg");
+        if (binarystr != NULL)
         {
-            Rio_writen(connfd, buf_cli, strlen(buf_cli));
+            binary = 1;
+        }
+        binarystr = strchr(parse_path, '.');
+        if (binarystr == NULL)
+        {
+            binary = 1;
+        }
+
+
+        char *binlen;
+        if (binary == 0)
+        {
+            while ((m = Rio_readlineb(&rio_cli, buf_cli, MAXLINE)) > 0)
+            {
+                Rio_writen(connfd, buf_cli, strlen(buf_cli));
+            }
+        }
+        else
+        {
+            
+            while ((m = Rio_readlineb(&rio_cli, buf_cli, MAXLINE)) > 0)
+            {
+
+                if (strncmp(buf_cli, "Content-length:", 15) == 0)
+                {
+                    char buf_clitemp[20];
+                    strcpy(buf_clitemp,buf_cli);
+                    binlen = strtok(buf_clitemp, ":");
+                    binlen = strtok(NULL, " ");
+                }
+
+                
+                Rio_writen(connfd, buf_cli, strlen(buf_cli));
+                if(strncmp(buf_cli, "Content-type:",13)==0) {break;}
+            }
+            char *bindata = malloc(atoi(binlen));
+            while ((m = Rio_readnb(&rio_cli, bindata, atoi(binlen))) > 0)
+            {
+
+                Rio_writen(connfd, bindata, atoi(binlen));
+            }
         }
 
         Close(clientfd);
